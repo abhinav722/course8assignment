@@ -1,0 +1,69 @@
+---
+title: "course_8"
+author: "abhinav palaparthy"
+date: "4 November 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading the data 
+```{r}
+library(caret)
+library(randomForest)
+traindata <- read.csv("./training.csv")
+testdata<-read.csv("./testing.csv")
+```
+## Data Exploration
+Used str(traindata) in order to examine types of coloumns and dimensions. Used table(training$classe) to examine number of unique classe.We observe that all non numerical variables exempt classe are irrelevent in our model.Moreover there exists incomplete data sets which will make our analysis difficult , I have remove them altogether.
+(not shown results to optimize space)
+## Cleaning Data and preparation
+```{r}
+valid_traincols<-colSums(is.na(traindata))
+valid_testcols<-colSums(is.na(testdata))
+traindata<-traindata[,valid_traincols==0]
+testdata<-testdata[,valid_traincols==0]
+
+idw <- which(names(traindata) %in% c("X","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp" ) )
+traindata <- traindata[,-idw]
+testdata<-testdata[,-idw]
+
+
+classe <- traindata$classe
+train<-traindata[,sapply(traindata,is.numeric)]
+train$classe<-classe
+test <- testdata[, sapply(testdata, is.numeric)]
+
+```
+## Creating cross validation set 
+Now we split the preprocessed training data into training set and validation set.(70,30 split)
+```{r}
+set.seed(696569)
+x <- createDataPartition(train$classe, p=0.70, list=F)
+tset <- train[x, ]
+vset <- train[-x, ]
+```
+
+## prediction 
+
+```{r}
+tr <- trainControl(method="cv", 5)
+model_rf <- train(classe ~ ., data=tset, method="rf", trControl=tr, ntree = 250)
+model_rf
+```
+use confusion matrix to measure sample error and accuracy 
+```{r}
+p <- predict(model_rf, vset)
+confusionMatrix(vset$classe,p)
+```
+```{r}
+accuracy <- postResample(p,vset$classe)
+accuracy
+```
+## applying model to test dataset 
+```{r}
+outcome<-predict(model_rf,test[, -length(names(test))])
+outcome
+```
